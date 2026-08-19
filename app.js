@@ -195,13 +195,77 @@ function placeholderForField(field){
   };
   return map[field.name] || (field.type==='select' ? 'Выберите значение' : 'Введите значение');
 }
+function numericInputAttrs({min='',max='',step='any'}={}){
+  return `type="text" inputmode="decimal" data-number="1" data-min="${esc(min)}" data-max="${esc(max)}" data-step="${esc(step)}" autocomplete="off" autocorrect="off" spellcheck="false"`;
+}
+function sanitizeNumericValue(raw, allowNegative=true){
+  let v=String(raw??'').replace(/\s+/g,'').replace(/,/g,'.').replace(/[^0-9.\-]/g,'');
+  if(!allowNegative) v=v.replace(/-/g,'');
+  else v=(v.startsWith('-')?'-':'')+v.replace(/-/g,'');
+  const dot=v.indexOf('.');
+  if(dot!==-1) v=v.slice(0,dot+1)+v.slice(dot+1).replace(/\./g,'');
+  return v;
+}
+function parseNumericValue(input, {validate=true}={}){
+  const raw=String(input.value??'').trim().replace(',','.');
+  if(raw===''){
+    if(validate) input.setCustomValidity(input.required?'Заполните поле':'');
+    return null;
+  }
+  if(!/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(raw)){
+    if(validate) input.setCustomValidity('Введите корректное число');
+    return null;
+  }
+  const value=Number(raw);
+  const min=input.dataset.min!==''?Number(input.dataset.min):null;
+  const max=input.dataset.max!==''?Number(input.dataset.max):null;
+  const step=input.dataset.step && input.dataset.step!=='any'?Number(input.dataset.step):null;
+  let message='';
+  if(min!==null && Number.isFinite(min) && value<min) message=`Минимум: ${min}`;
+  else if(max!==null && Number.isFinite(max) && value>max) message=`Максимум: ${max}`;
+  else if(step && Number.isFinite(step) && step>0){
+    const base=min!==null && Number.isFinite(min)?min:0;
+    const q=(value-base)/step;
+    if(Math.abs(q-Math.round(q))>1e-8) message=`Шаг: ${step}`;
+  }
+  if(validate) input.setCustomValidity(message);
+  return message?null:value;
+}
+function setupNumericInputs(root=document){
+  $$('input[data-number="1"]',root).forEach(input=>{
+    input.addEventListener('input',()=>{
+      const allowNegative=input.dataset.min==='' || Number(input.dataset.min)<0;
+      const caret=input.selectionStart??input.value.length;
+      const before=input.value;
+      const cleaned=sanitizeNumericValue(before,allowNegative);
+      if(cleaned!==before){
+        input.value=cleaned;
+        const end=Math.min(caret,cleaned.length);
+        try{input.setSelectionRange(end,end)}catch{}
+      }
+      input.setCustomValidity('');
+    });
+  });
+}
+function validateNumericInputs(root){
+  let ok=true;
+  $$('input[data-number="1"]',root).forEach(input=>{if(parseNumericValue(input)===null) ok=false});
+  return ok;
+}
+function caretToEnd(input){
+  if(!input.matches?.('input[data-number="1"]')) return;
+  const len=input.value.length;
+  requestAnimationFrame(()=>{try{input.setSelectionRange(len,len)}catch{}});
+}
+document.addEventListener('focusin',e=>caretToEnd(e.target));
+
 function fieldHtml(field, value){
   if(field.type==='select'){
     const placeholder=placeholderForField(field);
     return `<select class="field" name="${field.name}" required><option value="" ${value===''?'selected':''} disabled>${esc(placeholder)}</option>${field.options.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
   }
   const current=value ?? '';
-  return `<input class="field" name="${field.name}" type="${field.type}" value="${esc(current)}" placeholder="${esc(placeholderForField(field))}" min="${field.min}" max="${field.max}" step="${field.step}" inputmode="decimal" required/>`;
+  return `<input class="field numeric-field" name="${field.name}" ${numericInputAttrs(field)} value="${esc(current)}" placeholder="${esc(placeholderForField(field))}" required/>`;
 }
 function renderCalc(){
   const def=calcDef(state.calc); setHeader(def.title,'Новый расчёт • пустые поля',true); setDock('home');
@@ -211,14 +275,15 @@ function renderCalc(){
     <section class="warning"><strong>Новый расчёт = чистый лист.</strong> Все поля, переключатели и выбранные параметры очищаются. Остаются только серые placeholder‑подсказки. Профиль станка, инструмент и проекты не удаляются.</section>
     <div class="hero-actions" style="margin-top:10px"><button class="btn" type="button" id="clearCalcBtn">⟲ Очистить форму</button></div>
     <div class="form-footer"><button class="btn btn-primary" type="submit">▦ Рассчитать</button></div></form>`;
+  setupNumericInputs($('#calcForm'));
   $('#clearCalcBtn').onclick=()=>openCalc(state.calc);
   $('#calcForm').onsubmit=e=>{
     e.preventDefault();
     const form=e.currentTarget;
-    if(!form.reportValidity()) return;
+    if(!validateNumericInputs(form) || !form.reportValidity()) return;
     const fd=new FormData(form);
     const values=Object.fromEntries(fd.entries());
-    def.fields.forEach(x=>{if(x.type==='number') values[x.name]=Number(values[x.name])});
+    def.fields.forEach(x=>{if(x.type==='number'){const input=form.elements[x.name];values[x.name]=parseNumericValue(input,{validate:false})}});
     state.values=values;
     try{state.result=CALCULATORS[state.calc](values);state.view='result';render();window.scrollTo({top:0,behavior:'instant'})}catch(err){toast(err.message||'Ошибка расчёта')}
   };
@@ -264,16 +329,34 @@ function renderTools(){
   $('#addTool').onclick=()=>showToolSheet(); $$('.delete-tool').forEach(b=>b.onclick=()=>{saveTools(getTools().filter(t=>t.id!==b.dataset.id));renderTools()});
 }
 function showToolSheet(){
-  const wrap=document.createElement('div');wrap.className='sheet-backdrop';wrap.innerHTML=`<div class="sheet glass"><h3>Добавить инструмент</h3><form id="toolForm"><div class="form-row"><label>Тип</label><select class="field" name="type"><option value="mill">Фреза</option><option value="drill">Сверло</option></select></div><div class="form-row"><label>Название</label><input class="field" name="name" value="Фреза Ø8"/></div><div class="form-row"><label>Диаметр Ø</label><input class="field" name="dia" type="number" step="0.1" value="8"/></div><div class="form-row"><label>Зубьев z</label><input class="field" name="teeth" type="number" step="1" value="4"/></div><div class="hero-actions"><button class="btn btn-primary" type="submit">Сохранить</button><button class="btn" type="button" id="cancelSheet">Отмена</button></div></form></div>`;document.body.append(wrap);$('#cancelSheet',wrap).onclick=()=>wrap.remove();wrap.onclick=e=>{if(e.target===wrap)wrap.remove()};$('#toolForm',wrap).onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget).entries());const tools=getTools();tools.unshift({id:uid(),...v,dia:Number(v.dia),teeth:Number(v.teeth)});saveTools(tools);wrap.remove();renderTools()};
+  const wrap=document.createElement('div');
+  wrap.className='sheet-backdrop';
+  wrap.innerHTML=`<div class="sheet glass"><h3>Добавить инструмент</h3><form id="toolForm"><div class="form-row"><label>Тип</label><select class="field" name="type"><option value="mill">Фреза</option><option value="drill">Сверло</option></select></div><div class="form-row"><label>Название</label><input class="field" name="name" value="Фреза Ø8"/></div><div class="form-row"><label>Диаметр Ø</label><input class="field numeric-field" name="dia" ${numericInputAttrs({min:.1,max:500,step:.1})} value="8" required/></div><div class="form-row"><label>Зубьев z</label><input class="field numeric-field" name="teeth" ${numericInputAttrs({min:1,max:100,step:1})} value="4" required/></div><div class="hero-actions"><button class="btn btn-primary" type="submit">Сохранить</button><button class="btn" type="button" id="cancelSheet">Отмена</button></div></form></div>`;
+  document.body.append(wrap);
+  setupNumericInputs(wrap);
+  $('#cancelSheet',wrap).onclick=()=>wrap.remove();
+  wrap.onclick=e=>{if(e.target===wrap)wrap.remove()};
+  $('#toolForm',wrap).onsubmit=e=>{
+    e.preventDefault();
+    const form=e.currentTarget;
+    if(!validateNumericInputs(form) || !form.reportValidity()) return;
+    const v=Object.fromEntries(new FormData(form).entries());
+    v.dia=parseNumericValue(form.elements.dia,{validate:false});
+    v.teeth=parseNumericValue(form.elements.teeth,{validate:false});
+    const tools=getTools();tools.unshift({id:uid(),...v});saveTools(tools);wrap.remove();renderTools();
+  };
 }
 
 function renderProfile(){
   setHeader('Профиль','Станок и интерфейс',false); setDock('profile'); const p=getProfile();
   main.innerHTML=`<section class="hero glass"><div class="eyebrow">MACHINE PROFILE</div><h1>${esc(p.machine)}</h1><p>${esc(p.control)}</p></section>
-    <section class="settings-card glass"><div class="form-row"><label>Станок<small>Подпись в профиле</small></label><input id="machineInput" class="field" value="${esc(p.machine)}"/></div><div class="form-row"><label>Стойка</label><input id="controlInput" class="field" value="${esc(p.control)}"/></div><div class="form-row"><label>Макс. обороты S</label><input id="rpmInput" class="field" type="number" value="${esc(p.maxRpm)}"/></div></section>
+    <section class="settings-card glass"><div class="form-row"><label>Станок<small>Подпись в профиле</small></label><input id="machineInput" class="field" value="${esc(p.machine)}"/></div><div class="form-row"><label>Стойка</label><input id="controlInput" class="field" value="${esc(p.control)}"/></div><div class="form-row"><label>Макс. обороты S</label><input id="rpmInput" class="field numeric-field" ${numericInputAttrs({min:100,max:50000,step:10})} value="${esc(p.maxRpm)}" required/></div></section>
     <section class="settings-card glass"><div class="section-head" style="margin:0 0 8px"><h2>Тема</h2><p>интерфейс</p></div><div class="segment"><button data-theme-choice="dark" class="${state.theme==='dark'?'active':''}">Тёмная</button><button data-theme-choice="light" class="${state.theme==='light'?'active':''}">Светлая</button></div></section>
     <div class="hero-actions"><button class="btn btn-primary" id="saveProfile">Сохранить профиль</button><button class="btn btn-danger" id="clearData">Очистить локальные данные</button></div>`;
-  $$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice)); $('#saveProfile').onclick=()=>{saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:Number($('#rpmInput').value)||4000});toast('Профиль сохранён')}; $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент и профиль?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
+  setupNumericInputs(main);
+  $$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice));
+  $('#saveProfile').onclick=()=>{const rpm=$('#rpmInput');if(parseNumericValue(rpm)===null||!rpm.reportValidity())return;saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:parseNumericValue(rpm,{validate:false})});toast('Профиль сохранён')};
+  $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент и профиль?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
 }
 
 function setTheme(t){state.theme=t;app.dataset.theme=t;localStorage.setItem(STORAGE.theme,t);if(state.view==='profile')renderProfile()}
