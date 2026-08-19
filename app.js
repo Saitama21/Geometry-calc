@@ -168,26 +168,60 @@ function renderHome(){
 }
 
 function defaultValues(def){return Object.fromEntries(def.fields.map(x=>[x.name,x.value]))}
+function emptyValues(def){return Object.fromEntries(def.fields.map(x=>[x.name,'']))}
 function openCalc(id, values=null, projectId=null){
   if(state.view==='home') state.homeScroll=window.scrollY;
-  const def=calcDef(id); if(!def)return; state.calc=id; state.values={...defaultValues(def),...(values||{})}; state.currentProjectId=projectId; state.view='calc'; render();
+  const def=calcDef(id); if(!def)return;
+  state.calc=id;
+  state.values=values ? {...emptyValues(def),...values} : emptyValues(def);
+  state.result=null;
+  state.currentProjectId=projectId;
+  state.view='calc';
+  render();
 }
 function openPreset(name){
   if(name==='handle') openCalc('lobes',{stockDia:62,baseDia:50,outerDia:62,count:6,lobeR:11,toolDia:8,start:0,direction:'cw'});
 }
 
+function placeholderForField(field){
+  const map={
+    count:'Введите количество', sides:'Введите количество граней', start:'Введите угол', angle:'Введите угол',
+    pcd:'Введите диаметр', baseDia:'Введите диаметр', outerDia:'Введите диаметр', stockDia:'Введите диаметр',
+    toolDia:'Введите диаметр', diameter:'Введите диаметр', acrossFlats:'Введите размер', length:'Введите длину',
+    width:'Введите ширину', depth:'Введите глубину', lobeR:'Введите радиус', radius:'Введите радиус',
+    x1:'Введите X1', y1:'Введите Y1', x2:'Введите X2', y2:'Введите Y2', x0:'Введите X0', y0:'Введите Y0',
+    cx:'Введите X0', cy:'Введите Y0', vc:'Введите Vc', fz:'Введите fz', ap:'Введите ap', maxRpm:'Введите S',
+    pitch:'Введите шаг', teeth:'Введите зубья'
+  };
+  return map[field.name] || (field.type==='select' ? 'Выберите значение' : 'Введите значение');
+}
 function fieldHtml(field, value){
-  if(field.type==='select') return `<select class="field" name="${field.name}">${field.options.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
-  return `<input class="field" name="${field.name}" type="${field.type}" value="${esc(value)}" min="${field.min}" max="${field.max}" step="${field.step}" inputmode="decimal"/>`;
+  if(field.type==='select'){
+    const placeholder=placeholderForField(field);
+    return `<select class="field" name="${field.name}" required><option value="" ${value===''?'selected':''} disabled>${esc(placeholder)}</option>${field.options.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
+  }
+  const current=value ?? '';
+  return `<input class="field" name="${field.name}" type="${field.type}" value="${esc(current)}" placeholder="${esc(placeholderForField(field))}" min="${field.min}" max="${field.max}" step="${field.step}" inputmode="decimal" required/>`;
 }
 function renderCalc(){
-  const def=calcDef(state.calc); setHeader(def.title,'Ввод параметров',true); setDock('home');
+  const def=calcDef(state.calc); setHeader(def.title,'Новый расчёт • пустые поля',true); setDock('home');
   const rows=def.fields.map(x=>`<div class="form-row"><label>${esc(x.label)}${x.hint?`<small>${esc(x.hint)}</small>`:''}</label>${fieldHtml(x,state.values[x.name])}</div>`).join('');
-  const preview=state.calc==='lobes'?`<section class="preset-card glass"><img src="./assets/sample-handle-drawing.jpeg" alt="Чертёж"/><div><strong>Пример геометрии</strong><small>Калькулятор универсальный — значения можно менять под любую деталь.</small></div><span class="chev">⌕</span></section>`:'';
-  main.innerHTML=`${preview}<form id="calcForm"><section class="form-card glass">${rows}</section>
-    <section class="warning"><strong>Проверка геометрии включена.</strong> Калькулятор предупредит, если исходные размеры противоречат друг другу или инструмент физически не подходит.</section>
+  const preview=state.calc==='lobes'?`<section class="preset-card glass"><img src="./assets/sample-handle-drawing.jpeg" alt="Чертёж"/><div><strong>Пример геометрии</strong><small>Новый расчёт всегда открывается пустым. Готовый пример запускается только отдельной карточкой.</small></div><span class="chev">⌕</span></section>`:'';
+  main.innerHTML=`${preview}<form id="calcForm" novalidate><section class="form-card glass">${rows}</section>
+    <section class="warning"><strong>Новый расчёт = чистый лист.</strong> Все поля, переключатели и выбранные параметры очищаются. Остаются только серые placeholder‑подсказки. Профиль станка, инструмент и проекты не удаляются.</section>
+    <div class="hero-actions" style="margin-top:10px"><button class="btn" type="button" id="clearCalcBtn">⟲ Очистить форму</button></div>
     <div class="form-footer"><button class="btn btn-primary" type="submit">▦ Рассчитать</button></div></form>`;
-  $('#calcForm').onsubmit=e=>{e.preventDefault(); const fd=new FormData(e.currentTarget); const values=Object.fromEntries(fd.entries()); def.fields.forEach(x=>{if(x.type==='number') values[x.name]=Number(values[x.name])}); state.values=values; try{state.result=CALCULATORS[state.calc](values);state.view='result';render();window.scrollTo({top:0,behavior:'instant'})}catch(err){toast(err.message||'Ошибка расчёта')}};
+  $('#clearCalcBtn').onclick=()=>openCalc(state.calc);
+  $('#calcForm').onsubmit=e=>{
+    e.preventDefault();
+    const form=e.currentTarget;
+    if(!form.reportValidity()) return;
+    const fd=new FormData(form);
+    const values=Object.fromEntries(fd.entries());
+    def.fields.forEach(x=>{if(x.type==='number') values[x.name]=Number(values[x.name])});
+    state.values=values;
+    try{state.result=CALCULATORS[state.calc](values);state.view='result';render();window.scrollTo({top:0,behavior:'instant'})}catch(err){toast(err.message||'Ошибка расчёта')}
+  };
 }
 
 function summaryHtml(result){return result.summary.map(([k,v])=>`<div class="result-line"><div class="r-icon">⌁</div><div><strong>${esc(k)}</strong><p class="accent">${esc(v)}</p></div></div>`).join('')}
