@@ -68,3 +68,50 @@ body.focus-mode .dock{display:none}
 body.focus-mode .app-shell{padding-bottom:calc(22px + var(--safe-bottom))}
 body.focus-mode .form-footer{bottom:var(--safe-bottom)}
 @media print{.topbar,.dock,.action-grid,.form-footer{display:none!important}.app-shell{padding:0!important}.main-content{width:100%;max-width:none;padding:0}.glass{box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}.result-card{break-inside:avoid}}
+
+/* v1.0.2 — iPhone containment / responsive result fix */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+.app-shell,.main-content{min-width:0;max-width:100%}
+.result-grid,.result-grid>*{min-width:0;max-width:100%}
+.result-card{width:100%;min-width:0;max-width:100%;overflow:hidden}
+.result-summary,.result-line,.section-head,.kpi-row,.action-grid{min-width:0;max-width:100%}
+.result-line>*,.section-head>*,.kpi-row>*,.action-grid>*{min-width:0}
+.table-wrap{width:100%;min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
+.data-table{width:max-content;min-width:100%;max-width:none}
+.code-box{width:100%;min-width:0;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.diagram{width:100%;min-width:0;max-width:100%}
+.diagram svg{max-width:100%}
+
+@media(max-width:699px){
+  .main-content{width:100%;padding:14px 10px 24px}
+  .result-grid{width:100%;grid-template-columns:minmax(0,1fr);gap:10px}
+  .result-card{padding:12px;border-radius:19px;margin-bottom:10px}
+  .result-card .section-head{align-items:center}
+  .result-card .section-head h2{font-size:18px}
+  .result-card .section-head p{max-width:42%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .diagram{padding:8px;border-radius:16px}
+  .diagram svg{max-height:300px}
+  .table-wrap{border-radius:14px}
+  .data-table{font-size:11px}
+  .data-table th,.data-table td{padding:9px 8px}
+  .kpi-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .kpi{min-width:0;padding:10px 5px}
+  .kpi strong{font-size:14px;white-space:nowrap}
+  .kpi small{font-size:9px;line-height:1.15}
+  .action-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .action-grid .btn{min-width:0;padding:10px 6px;font-size:12px;white-space:normal;line-height:1.15}
+  .code-box{font-size:10.5px;padding:11px}
+}
+
+@media(max-width:390px){
+  .main-content{padding-left:8px;padding-right:8px}
+  .result-card{padding:11px}
+  .result-line{grid-template-columns:34px minmax(0,1fr);gap:8px;padding:10px}
+  .result-line .r-icon{width:32px;height:32px}
+  .topbar{gap:7px;padding-left:8px;padding-right:8px}
+  .top-actions{gap:4px}
+  .icon-btn{width:36px;height:36px}
+  .brand-mark{width:32px;height:32px}
+  .brand-text strong{font-size:15px}
+  .brand-text small{font-size:10px}
+}

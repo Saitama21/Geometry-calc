@@ -330,5 +330,5 @@ $('#themeBtn').onclick=()=>setTheme(state.theme==='dark'?'light':'dark');
 $('#settingsBtn').onclick=()=>goto('profile');
 $$('.dock-item').forEach(b=>b.onclick=()=>goto(b.dataset.nav));
 
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}))}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{}))}
 render();
