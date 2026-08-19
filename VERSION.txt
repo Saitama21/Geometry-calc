@@ -1,0 +1,4 @@
+CNC Geometry FULL v1.0.0
+Build: 2026-08-19
+Target: GitHub Pages / PWA / iPhone-first
+Regression checks: 11/11

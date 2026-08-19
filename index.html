@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+  <meta name="theme-color" content="#0b0d0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CNC Geometry" />
+  <meta name="description" content="Офлайн CNC-калькулятор геометрии, оси C, PCD, лепестков, пазов, лысок, многоугольников, сверления и резьбы." />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="./assets/icons/icon-180.png" />
+  <link rel="icon" href="./assets/icons/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+  <title>CNC Geometry — FULL</title>
+</head>
+<body>
+  <div id="app" class="app-shell" data-theme="dark">
+    <header class="topbar glass">
+      <button class="icon-btn" id="backBtn" aria-label="Назад" hidden>
+        <span aria-hidden="true">←</span>
+      </button>
+      <div class="brand-wrap">
+        <div class="brand-mark">⚙︎</div>
+        <div class="brand-text">
+          <strong id="screenTitle">CNC Geometry</strong>
+          <small id="screenSubtitle">FULL • Offline</small>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="icon-btn" id="themeBtn" aria-label="Тема">◐</button>
+        <button class="icon-btn" id="settingsBtn" aria-label="Настройки">⋯</button>
+      </div>
+    </header>
+
+    <main id="main" class="main-content" tabindex="-1"></main>
+
+    <nav class="dock glass" id="dock" aria-label="Главная навигация">
+      <button data-nav="home" class="dock-item active"><span>⌂</span><small>Расчёты</small></button>
+      <button data-nav="projects" class="dock-item"><span>▣</span><small>Проекты</small></button>
+      <button data-nav="tools" class="dock-item"><span>⌁</span><small>Инструмент</small></button>
+      <button data-nav="profile" class="dock-item"><span>◎</span><small>Профиль</small></button>
+    </nav>
+  </div>
+
+  <template id="toastTemplate">
+    <div class="toast glass" role="status"></div>
+  </template>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
