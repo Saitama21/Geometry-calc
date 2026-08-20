@@ -12,7 +12,8 @@ const STORAGE = {
   projects:'cnc-geometry-projects-v1',
   theme:'cnc-geometry-theme-v1',
   tools:'cnc-geometry-tools-v1',
-  profile:'cnc-geometry-profile-v1'
+  profile:'cnc-geometry-profile-v1',
+  dock:'cnc-geometry-dock-v1'
 };
 
 const state = {
@@ -25,6 +26,37 @@ const state = {
   theme:localStorage.getItem(STORAGE.theme) || 'dark'
 };
 app.dataset.theme = state.theme;
+
+const DOCK_DEFAULTS = { bottom:7, width:95, thickness:68, radius:22, border:1 };
+function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
+function getDockSettings(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(STORAGE.dock)||'{}');
+    return {
+      bottom:clamp(Number(raw.bottom ?? DOCK_DEFAULTS.bottom),0,60),
+      width:clamp(Number(raw.width ?? DOCK_DEFAULTS.width),70,100),
+      thickness:clamp(Number(raw.thickness ?? DOCK_DEFAULTS.thickness),52,100),
+      radius:clamp(Number(raw.radius ?? DOCK_DEFAULTS.radius),8,38),
+      border:clamp(Number(raw.border ?? DOCK_DEFAULTS.border),0,4)
+    };
+  }catch{return {...DOCK_DEFAULTS}}
+}
+function applyDockSettings(cfg=getDockSettings()){
+  const root=document.documentElement;
+  root.style.setProperty('--dock-bottom',`${cfg.bottom}px`);
+  root.style.setProperty('--dock-width',`${cfg.width}%`);
+  root.style.setProperty('--dock-height',`${cfg.thickness}px`);
+  root.style.setProperty('--dock-radius',`${cfg.radius}px`);
+  root.style.setProperty('--dock-border',`${cfg.border}px`);
+}
+function saveDockSettings(cfg){localStorage.setItem(STORAGE.dock,JSON.stringify(cfg));applyDockSettings(cfg)}
+function standaloneMode(){return matchMedia('(display-mode: standalone)').matches || navigator.standalone===true}
+function readSafeArea(){
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom);padding-left:env(safe-area-inset-left)';
+  document.body.appendChild(el); const c=getComputedStyle(el); const out={top:parseFloat(c.paddingTop)||0,right:parseFloat(c.paddingRight)||0,bottom:parseFloat(c.paddingBottom)||0,left:parseFloat(c.paddingLeft)||0}; el.remove(); return out;
+}
+applyDockSettings();
 
 const calcDefs = [
   {id:'division', icon:'C°', title:'Деление окружности', desc:'Индексация оси C на любое число позиций', badge:'C-axis', fields:[
@@ -234,12 +266,72 @@ function showToolSheet(){
 }
 
 function renderProfile(){
-  setHeader('Профиль','Станок и интерфейс',false); setDock('profile'); const p=getProfile();
+  setHeader('Профиль','Станок и интерфейс',false); setDock('profile'); const p=getProfile(); const d=getDockSettings();
   main.innerHTML=`<section class="hero glass"><div class="eyebrow">MACHINE PROFILE</div><h1>${esc(p.machine)}</h1><p>${esc(p.control)}</p></section>
     <section class="settings-card glass"><div class="form-row"><label>Станок<small>Подпись в профиле</small></label><input id="machineInput" class="field" value="${esc(p.machine)}"/></div><div class="form-row"><label>Стойка</label><input id="controlInput" class="field" value="${esc(p.control)}"/></div><div class="form-row"><label>Макс. обороты S</label><input id="rpmInput" class="field" type="number" value="${esc(p.maxRpm)}"/></div></section>
     <section class="settings-card glass"><div class="section-head" style="margin:0 0 8px"><h2>Тема</h2><p>интерфейс</p></div><div class="segment"><button data-theme-choice="dark" class="${state.theme==='dark'?'active':''}">Тёмная</button><button data-theme-choice="light" class="${state.theme==='light'?'active':''}">Светлая</button></div></section>
+    <section class="settings-card glass dock-diagnostics" id="dockDiagnostics">
+      <div class="section-head" style="margin:0 0 8px"><h2>Диагностика Dock</h2><p>настройка вживую</p></div>
+      <div class="warning"><strong>Подсказка:</strong> меняй ползунки — Dock сразу двигается. «Сохранить Dock» запоминает настройку для PWA.</div>
+      <div class="dock-controls">
+        <div class="dock-control"><div class="dock-control-head"><label for="dockBottom">Высота от низа</label><span class="dock-value" id="dockBottomValue">${d.bottom}px</span></div><input class="dock-range" id="dockBottom" type="range" min="0" max="60" step="1" value="${d.bottom}"></div>
+        <div class="dock-control"><div class="dock-control-head"><label for="dockWidth">Ширина</label><span class="dock-value" id="dockWidthValue">${d.width}%</span></div><input class="dock-range" id="dockWidth" type="range" min="70" max="100" step="1" value="${d.width}"></div>
+        <div class="dock-control"><div class="dock-control-head"><label for="dockThickness">Толщина Dock</label><span class="dock-value" id="dockThicknessValue">${d.thickness}px</span></div><input class="dock-range" id="dockThickness" type="range" min="52" max="100" step="1" value="${d.thickness}"></div>
+        <div class="dock-control"><div class="dock-control-head"><label for="dockRadius">Скругление</label><span class="dock-value" id="dockRadiusValue">${d.radius}px</span></div><input class="dock-range" id="dockRadius" type="range" min="8" max="38" step="1" value="${d.radius}"></div>
+        <div class="dock-control"><div class="dock-control-head"><label for="dockBorder">Толщина рамки</label><span class="dock-value" id="dockBorderValue">${d.border}px</span></div><input class="dock-range" id="dockBorder" type="range" min="0" max="4" step="0.5" value="${d.border}"></div>
+      </div>
+      <div class="dock-diagnostic-actions"><button class="btn btn-primary" id="saveDock">Сохранить Dock</button><button class="btn" id="resetDock">Сбросить</button></div>
+      <button class="btn" id="toggleDockLine" style="width:100%;margin-top:8px">Красная линия низа: выкл</button>
+      <div class="dock-diagnostic-report" id="dockReport"></div>
+    </section>
     <div class="hero-actions"><button class="btn btn-primary" id="saveProfile">Сохранить профиль</button><button class="btn btn-danger" id="clearData">Очистить локальные данные</button></div>`;
-  $$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice)); $('#saveProfile').onclick=()=>{saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:Number($('#rpmInput').value)||4000});toast('Профиль сохранён')}; $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент и профиль?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
+  $$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice));
+  $('#saveProfile').onclick=()=>{saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:Number($('#rpmInput').value)||4000});toast('Профиль сохранён')};
+  $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент, профиль и настройку Dock?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
+  initDockDiagnostics(d);
+}
+
+function initDockDiagnostics(initial){
+  let draft={...initial}, lineOn=false;
+  const ids={bottom:'dockBottom',width:'dockWidth',thickness:'dockThickness',radius:'dockRadius',border:'dockBorder'};
+  const valueIds={bottom:'dockBottomValue',width:'dockWidthValue',thickness:'dockThicknessValue',radius:'dockRadiusValue',border:'dockBorderValue'};
+  const suffix={bottom:'px',width:'%',thickness:'px',radius:'px',border:'px'};
+  const update=()=>{
+    applyDockSettings(draft);
+    Object.keys(ids).forEach(k=>{const out=$(`#${valueIds[k]}`); if(out) out.textContent=`${draft[k]}${suffix[k]}`});
+    requestAnimationFrame(updateDockReport);
+  };
+  Object.entries(ids).forEach(([key,id])=>{const el=$(`#${id}`); if(!el)return; el.oninput=()=>{draft[key]=Number(el.value);update()}});
+  $('#saveDock').onclick=()=>{saveDockSettings(draft);toast(`Dock сохранён: низ ${draft.bottom}px • ширина ${draft.width}% • толщина ${draft.thickness}px`);updateDockReport()};
+  $('#resetDock').onclick=()=>{draft={...DOCK_DEFAULTS};Object.entries(ids).forEach(([k,id])=>{const el=$(`#${id}`);if(el)el.value=draft[k]});update();toast('Dock сброшен к 7px / 95% / 68px')};
+  $('#toggleDockLine').onclick=()=>{lineOn=!lineOn;$('#dockDebugLine')?.classList.toggle('show',lineOn);$('#dockDebugLabel')?.classList.toggle('show',lineOn);$('#toggleDockLine').textContent=`Красная линия низа: ${lineOn?'вкл':'выкл'}`;updateDockReport()};
+  window.addEventListener('resize',updateDockReport,{once:true});
+  update();
+}
+
+function updateDockReport(){
+  const out=$('#dockReport'), dock=$('#dock'); if(!out||!dock)return;
+  const r=dock.getBoundingClientRect(), vv=window.visualViewport, safe=readSafeArea(), css=getComputedStyle(dock);
+  const mode=standaloneMode()?'standalone':'browser';
+  const visualBottom=vv?(vv.offsetTop+vv.height):innerHeight;
+  const innerGap=innerHeight-r.bottom, visualGap=visualBottom-r.bottom;
+  out.textContent=[
+    `mode: ${mode}`,
+    `DPR: ${devicePixelRatio}`,
+    `screen: ${screen.width}×${screen.height}`,
+    `avail: ${screen.availWidth}×${screen.availHeight}`,
+    `inner: ${innerWidth}×${innerHeight}`,
+    `client: ${document.documentElement.clientWidth}×${document.documentElement.clientHeight}`,
+    `visualViewport: ${vv?`${vv.width.toFixed(1)}×${vv.height.toFixed(1)} offsetTop=${vv.offsetTop.toFixed(1)} scale=${vv.scale}`:'n/a'}`,
+    `safe: top=${safe.top} right=${safe.right} bottom=${safe.bottom} left=${safe.left}`,
+    `dock rect: top=${r.top.toFixed(1)} bottom=${r.bottom.toFixed(1)} h=${r.height.toFixed(1)} w=${r.width.toFixed(1)}`,
+    `dock css bottom: ${parseFloat(css.bottom).toFixed(1)}px`,
+    `gap to inner bottom: ${innerGap.toFixed(1)}px`,
+    `gap to visual bottom: ${visualGap.toFixed(1)}px`,
+    `scrollY(main): ${Math.round(window.scrollY)}`,
+    `calibrated bottom: ${parseFloat(css.bottom)}px`
+  ].join('\n');
+  const lab=$('#dockDebugLabel'); if(lab)lab.textContent=`Dock ${Math.round(r.width)}×${Math.round(r.height)} • bottom ${Math.round(innerGap)}px`;
 }
 
 function setTheme(t){state.theme=t;app.dataset.theme=t;localStorage.setItem(STORAGE.theme,t);if(state.view==='profile')renderProfile()}
