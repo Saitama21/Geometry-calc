@@ -1,14 +1,12 @@
-CNC Geometry FULL v1.0.7
-Build: 2026-08-21
-Target: GitHub Pages / PWA / iPhone-first
+CNC Geometry FULL v1.0.8
+Mobile Result Width Fix
 
-iPhone 14 Pro standalone profile retained:
-- Topbar: inset 0px, base height 75px, horizontal padding 13px, bottom padding 0px, radius 34px, border 1px.
-- Dock: bottom 2px, width 87%, height 68px, border 1px.
-
-v1.0.7 cosmetic result-page pass:
-- iPhone 14 Pro result summary is now a compact 2-column grid.
-- Result cards, gaps, KPI blocks and diagram are reduced for mobile.
-- Diagram max height is 285px on the calibrated phone profile.
-- Tablet/desktop >=700px remains unchanged with Result + Scheme side by side.
-- Top diagnostics retained.
+Changes:
+- iPhone 14 Pro result page is hard-limited to the viewport width.
+- Fixed CSS Grid min-content expansion that caused right-side clipping.
+- Result summary restored to one compact column on 393px.
+- Diagram is capped at 270px and always fits its card.
+- Coordinates table scrolls inside its own card instead of widening the page.
+- G-code block and action buttons can no longer force horizontal overflow.
+- iPad/tablet >=700px layout is unchanged.
+- iPhone 14 Pro calibrated top bar and Dock are unchanged.
