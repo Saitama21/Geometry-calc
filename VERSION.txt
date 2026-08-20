@@ -1,4 +1,5 @@
-CNC Geometry FULL v1.0.3
-Build: 2026-08-19
+CNC Geometry FULL v1.0.1
+Build: 2026-08-20
 Target: GitHub Pages / PWA / iPhone-first
 Regression checks: 11/11
+Fix: dock bottom position is independent of iOS safe-area (3px)
