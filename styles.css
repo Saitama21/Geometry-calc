@@ -100,3 +100,25 @@ body.focus-mode .form-footer{bottom:var(--safe-bottom)}
 .diag-slider{padding:10px 0;border-bottom:1px solid var(--line)}.diag-slider:last-child{border-bottom:0}.diag-slider-head{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:12px;margin-bottom:7px}.diag-slider-head output{color:var(--yellow);font-weight:800}.diag-slider input[type=range]{width:100%;accent-color:var(--yellow)}
 .diag-report{font-family:"SFMono-Regular",Consolas,monospace;background:#090c0f;border:1px solid var(--line);border-radius:14px;padding:11px;white-space:pre-wrap;overflow:auto;font-size:10px;line-height:1.45;color:var(--muted);margin-top:10px}
 .diag-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.diag-actions .btn{width:100%;padding:10px 8px;font-size:12px}
+
+/* v1.0.7 — compact result layout for the calibrated iPhone 14 Pro profile.
+   Tablet/desktop layout above 700px is intentionally unchanged. */
+@media (max-width:699px){
+  html.device-iphone14pro .main-content{padding:12px 14px 24px}
+  html.device-iphone14pro .result-card{padding:12px;border-radius:19px;margin-bottom:8px}
+  html.device-iphone14pro .result-grid{gap:8px}
+  html.device-iphone14pro .result-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  html.device-iphone14pro .result-line{grid-template-columns:30px minmax(0,1fr);gap:7px;padding:9px 8px;min-height:72px;align-items:center}
+  html.device-iphone14pro .result-line .r-icon{width:28px;height:28px;border-radius:9px}
+  html.device-iphone14pro .result-line strong{font-size:12px;line-height:1.2}
+  html.device-iphone14pro .result-line p{font-size:11px;line-height:1.25;margin-top:3px}
+  html.device-iphone14pro .result-summary .result-line:last-child:nth-child(odd){grid-column:1/-1;min-height:62px}
+  html.device-iphone14pro .section-head{margin-bottom:7px!important}
+  html.device-iphone14pro .section-head h2{font-size:17px}
+  html.device-iphone14pro .diagram{padding:7px;border-radius:16px}
+  html.device-iphone14pro .diagram svg{max-height:285px}
+  html.device-iphone14pro .kpi-row{gap:6px;margin-top:8px}
+  html.device-iphone14pro .kpi{padding:9px 5px;border-radius:12px}
+  html.device-iphone14pro .kpi strong{font-size:14px}
+  html.device-iphone14pro .kpi small{font-size:9px}
+}

@@ -1,7 +1,14 @@
-CNC Geometry FULL v1.0.6
+CNC Geometry FULL v1.0.7
 Build: 2026-08-21
 Target: GitHub Pages / PWA / iPhone-first
-Device-specific calibration added for standalone 393×852 @3x profile (iPhone 14 Pro-class viewport).
-Topbar on that profile: inset 0px, base height 75px, horizontal padding 13px, bottom padding 0px, radius 34px, border 1px.
-Dock on that profile: bottom 2px, width 87%, height 68px, border 1px.
-Other devices keep generic geometry. Topbar diagnostics retained for verification and fine tuning.
+
+iPhone 14 Pro standalone profile retained:
+- Topbar: inset 0px, base height 75px, horizontal padding 13px, bottom padding 0px, radius 34px, border 1px.
+- Dock: bottom 2px, width 87%, height 68px, border 1px.
+
+v1.0.7 cosmetic result-page pass:
+- iPhone 14 Pro result summary is now a compact 2-column grid.
+- Result cards, gaps, KPI blocks and diagram are reduced for mobile.
+- Diagram max height is 285px on the calibrated phone profile.
+- Tablet/desktop >=700px remains unchanged with Result + Scheme side by side.
+- Top diagnostics retained.
