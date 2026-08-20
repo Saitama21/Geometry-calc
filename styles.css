@@ -32,10 +32,17 @@
 /* Device calibration profile: iPhone 14 Pro-class viewport (393×852 @3x, standalone).
    Kept separate from generic defaults so other phones are not forced into this geometry. */
 html.device-iphone14pro{
+  /* Final calibrated profile for the user's iPhone 14 Pro (393×852 @3x, standalone). */
   --dock-bottom:2px;
   --dock-width:87%;
   --dock-height:68px;
   --dock-border:1px;
+  --topbar-inset:0px;
+  --topbar-base-height:75px;
+  --topbar-pad-x:13px;
+  --topbar-pad-bottom:0px;
+  --topbar-radius:34px;
+  --topbar-border:1px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);overscroll-behavior:none}

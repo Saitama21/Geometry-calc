@@ -268,9 +268,13 @@ function topbarDefaults(){
 }
 function getTopbarSettings(){
   const defaults=topbarDefaults();
+  // The calibrated iPhone 14 Pro profile is now a fixed device rule.
+  // Ignore old diagnostic/localStorage overrides on this device so the geometry stays stable.
+  if(DEVICE_PROFILE==='iphone14pro') return defaults;
   try{return {...defaults,...JSON.parse(localStorage.getItem(STORAGE.topbar)||'{}')}}catch{return defaults}
 }
 function applyTopbarSettings(v=getTopbarSettings()){
+  if(DEVICE_PROFILE==='iphone14pro') v=topbarDefaults();
   const root=document.documentElement;
   root.style.setProperty('--topbar-inset',`${v.inset}px`);
   root.style.setProperty('--topbar-base-height',`${v.height}px`);
@@ -279,7 +283,10 @@ function applyTopbarSettings(v=getTopbarSettings()){
   root.style.setProperty('--topbar-radius',`${v.radius}px`);
   root.style.setProperty('--topbar-border',`${v.border}px`);
 }
-function saveTopbarSettings(v){localStorage.setItem(STORAGE.topbar,JSON.stringify(v));applyTopbarSettings(v)}
+function saveTopbarSettings(v){
+  if(DEVICE_PROFILE==='iphone14pro'){applyTopbarSettings(topbarDefaults());return}
+  localStorage.setItem(STORAGE.topbar,JSON.stringify(v));applyTopbarSettings(v)
+}
 function topbarMode(){return matchMedia('(display-mode: standalone)').matches||navigator.standalone?'standalone':'browser'}
 function topbarReport(v){
   const r=document.querySelector('.topbar')?.getBoundingClientRect();
@@ -302,33 +309,15 @@ function topbarReport(v){
 }
 
 function renderProfile(){
-  setHeader('Профиль','Станок и интерфейс',false); setDock('profile'); const p=getProfile(); const tv=getTopbarSettings();
+  setHeader('Профиль','Станок и интерфейс',false); setDock('profile'); const p=getProfile();
   main.innerHTML=`<section class="hero glass"><div class="eyebrow">MACHINE PROFILE</div><h1>${esc(p.machine)}</h1><p>${esc(p.control)}</p></section>
     <section class="settings-card glass"><div class="form-row"><label>Станок<small>Подпись в профиле</small></label><input id="machineInput" class="field" value="${esc(p.machine)}"/></div><div class="form-row"><label>Стойка</label><input id="controlInput" class="field" value="${esc(p.control)}"/></div><div class="form-row"><label>Макс. обороты S</label><input id="rpmInput" class="field" type="number" value="${esc(p.maxRpm)}"/></div></section>
     <section class="settings-card glass"><div class="section-head" style="margin:0 0 8px"><h2>Тема</h2><p>интерфейс</p></div><div class="segment"><button data-theme-choice="dark" class="${state.theme==='dark'?'active':''}">Тёмная</button><button data-theme-choice="light" class="${state.theme==='light'?'active':''}">Светлая</button></div></section>
-    <section class="settings-card glass topdiag" id="topDiag">
-      <div class="diag-title"><h2>Диагностика верха</h2><small>LIVE</small></div>
-      <div class="warning"><strong>Только верхняя панель.</strong> Ползунки меняют её сразу. Dock и расчёты не затрагиваются.</div>
-      <div class="topdiag-preview"><div class="topdiag-preview-bar" id="topDiagPreview"><div class="mini-ico">←</div><div class="mini-mark">⚙︎</div><div class="mini-title"><strong>Результат расчёта</strong><small>Лепестки / контур</small></div><div class="mini-ico">◐</div><div class="mini-ico">⋯</div></div></div>
-      ${[['inset','Отступ от краёв / ширина',0,24,1,tv.inset],['height','Высота основы',48,90,1,tv.height],['padX','Внутренний отступ слева/справа',6,24,1,tv.padX],['padBottom','Нижний внутренний отступ',0,24,1,tv.padBottom],['radius','Скругление',0,34,1,tv.radius],['border','Толщина рамки',0,3,.5,tv.border]].map(([k,l,min,max,step,val])=>`<div class="diag-slider"><div class="diag-slider-head"><span>${l}</span><output id="out-${k}">${val}px</output></div><input type="range" data-topdiag="${k}" min="${min}" max="${max}" step="${step}" value="${val}"></div>`).join('')}
-      <pre class="diag-report" id="topDiagReport"></pre>
-      <div class="diag-actions"><button class="btn btn-primary" id="saveTopbar">Сохранить верх</button><button class="btn" id="resetTopbar">Сбросить</button></div>
-    </section>
+    ${DEVICE_PROFILE==='iphone14pro'?`<section class="settings-card glass"><div class="section-head" style="margin:0"><h2>iPhone 14 Pro</h2><p>профиль зафиксирован</p></div><p style="margin:10px 0 0;color:var(--muted);font-size:12px;line-height:1.45">Верхняя панель, Dock, мобильная раскладка результатов и поведение числового ввода применяются автоматически для 393×852 @3x в standalone.</p></section>`:''}
     <div class="hero-actions"><button class="btn btn-primary" id="saveProfile">Сохранить профиль</button><button class="btn btn-danger" id="clearData">Очистить локальные данные</button></div>`;
   $$('[data-theme-choice]').forEach(b=>b.onclick=()=>setTheme(b.dataset.themeChoice));
-  let live={...tv};
-  const update=()=>{
-    applyTopbarSettings(live);
-    $$('[data-topdiag]').forEach(r=>{const o=$(`#out-${r.dataset.topdiag}`);if(o)o.textContent=`${r.value}px`});
-    const preview=$('#topDiagPreview'); if(preview){preview.style.marginLeft=`${Math.min(live.inset,18)}px`;preview.style.marginRight=`${Math.min(live.inset,18)}px`;preview.style.height=`${Math.max(44,Math.min(76,live.height-10))}px`;preview.style.paddingLeft=`${live.padX}px`;preview.style.paddingRight=`${live.padX}px`;preview.style.borderRadius=`0 0 ${live.radius}px ${live.radius}px`;preview.style.borderWidth=`${live.border}px`;}
-    const rep=$('#topDiagReport'); if(rep)requestAnimationFrame(()=>rep.textContent=topbarReport(live));
-  };
-  $$('[data-topdiag]').forEach(r=>r.oninput=()=>{live[r.dataset.topdiag]=Number(r.value);update()});
-  $('#saveTopbar').onclick=()=>{saveTopbarSettings(live);toast('Настройки верхней панели сохранены');update()};
-  $('#resetTopbar').onclick=()=>{live={...topbarDefaults()};saveTopbarSettings(live);renderProfile();toast('Верхняя панель сброшена')};
   $('#saveProfile').onclick=()=>{saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:Number($('#rpmInput').value)||4000});toast('Профиль сохранён')};
   $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент и профиль?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
-  update();
 }
 
 function setTheme(t){state.theme=t;app.dataset.theme=t;localStorage.setItem(STORAGE.theme,t);if(state.view==='profile')renderProfile()}

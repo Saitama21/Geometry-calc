@@ -1,9 +1,10 @@
-CNC Geometry FULL v1.0.9
-Numeric Input Caret Fix
+CNC Geometry FULL v1.1.0
 
-Changes:
-- Calculator numeric fields now open with the caret after the existing value on iPhone/iOS.
-- Numeric fields keep the decimal keyboard via inputmode="decimal".
-- Comma decimal input is normalized to a dot before calculation.
-- iPhone 14 Pro calibrated top bar and Dock are unchanged.
-- v1.0.8 mobile result width/layout fixes are unchanged.
+Final iPhone 14 Pro UI profile:
+- 393×852 @ DPR 3 in standalone mode gets fixed calibrated geometry.
+- Top bar: inset 0px, base height 75px, padX 13px, bottom pad 0px, radius 34px, border 1px.
+- Dock: bottom 2px, width 87%, height 68px, border 1px.
+- Compact mobile result layout retained.
+- Numeric fields keep the caret after the existing value on iOS.
+- Top diagnostics removed from the production profile.
+- Old saved topbar diagnostic values are ignored on the iPhone 14 Pro profile.

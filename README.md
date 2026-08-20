@@ -57,3 +57,7 @@ Profile now includes live Dock diagnostics with controls for bottom offset, widt
 
 ## v1.0.6 device profile
 For standalone mode on a 393×852 CSS-pixel screen at DPR 3, the app applies the calibrated iPhone 14 Pro-class UI profile: topbar 0/75/13/0/34/1 and Dock 2px/87%/68px/1px. Other devices retain generic defaults. Top diagnostics remain available in Profile.
+
+
+## v1.1.0 — fixed iPhone 14 Pro production profile
+The calibrated 393×852 @3x standalone profile is now locked as a device rule. Top diagnostics were removed from the production UI, prior localStorage topbar overrides are ignored on this profile, and the validated mobile result layout and iOS caret behavior are retained.
