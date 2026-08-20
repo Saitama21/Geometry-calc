@@ -1,5 +1,5 @@
-CNC Geometry FULL v1.0.3
+CNC Geometry FULL v1.0.4
 Build: 2026-08-20
 Target: GitHub Pages / PWA / iPhone-first
-Dock diagnostics: live bottom / width / thickness / radius / border controls
-Default dock calibration: bottom 7px, width 95%, thickness 68px
+Dock diagnostics removed.
+Fixed dock calibration: bottom 2px, width 87% (341.9px on 393px viewport), height 68px, border 1px.

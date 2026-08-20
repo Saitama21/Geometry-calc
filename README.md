@@ -51,5 +51,5 @@ node tests.mjs
 Расчёт S/F в приложении предназначен как стартовый ориентир. Для реальной обработки финальные режимы нужно сверять с конкретным инструментом, материалом, вылетом, жёсткостью установки, охлаждением и рекомендациями производителя инструмента.
 
 
-## v1.0.3 Dock Diagnostics
+## v1.0.4 Dock Diagnostics
 Profile now includes live Dock diagnostics with controls for bottom offset, width, thickness, radius and border. Settings can be saved to localStorage.
