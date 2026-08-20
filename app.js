@@ -189,7 +189,24 @@ function openPreset(name){
 
 function fieldHtml(field, value){
   if(field.type==='select') return `<select class="field" name="${field.name}">${field.options.map(([v,t])=>`<option value="${esc(v)}" ${String(v)===String(value)?'selected':''}>${esc(t)}</option>`).join('')}</select>`;
-  return `<input class="field" name="${field.name}" type="${field.type}" value="${esc(value)}" min="${field.min}" max="${field.max}" step="${field.step}" inputmode="decimal"/>`;
+  // iOS Safari can place the caret before an existing value in <input type="number">.
+  // Use a text input with numeric keyboard so selectionStart/setSelectionRange works reliably.
+  if(field.type==='number') return `<input class="field numeric-field" name="${field.name}" type="text" value="${esc(value)}" inputmode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" data-min="${field.min}" data-max="${field.max}" data-step="${field.step}" autocomplete="off"/>`;
+  return `<input class="field" name="${field.name}" type="${field.type}" value="${esc(value)}"/>`;
+}
+
+function bindNumericCaretEnd(root=document){
+  $$('.numeric-field',root).forEach(input=>{
+    const caretToEnd=()=>{
+      const end=input.value.length;
+      try{input.setSelectionRange(end,end)}catch{}
+    };
+    input.addEventListener('focus',()=>{
+      requestAnimationFrame(caretToEnd);
+      setTimeout(caretToEnd,40); // iOS may move the caret after the focus event.
+    });
+    input.addEventListener('pointerup',()=>setTimeout(caretToEnd,0));
+  });
 }
 function renderCalc(){
   const def=calcDef(state.calc); setHeader(def.title,'Ввод параметров',true); setDock('home');
@@ -198,7 +215,8 @@ function renderCalc(){
   main.innerHTML=`${preview}<form id="calcForm"><section class="form-card glass">${rows}</section>
     <section class="warning"><strong>Проверка геометрии включена.</strong> Калькулятор предупредит, если исходные размеры противоречат друг другу или инструмент физически не подходит.</section>
     <div class="form-footer"><button class="btn btn-primary" type="submit">▦ Рассчитать</button></div></form>`;
-  $('#calcForm').onsubmit=e=>{e.preventDefault(); const fd=new FormData(e.currentTarget); const values=Object.fromEntries(fd.entries()); def.fields.forEach(x=>{if(x.type==='number') values[x.name]=Number(values[x.name])}); state.values=values; try{state.result=CALCULATORS[state.calc](values);state.view='result';render();window.scrollTo({top:0,behavior:'instant'})}catch(err){toast(err.message||'Ошибка расчёта')}};
+  bindNumericCaretEnd($('#calcForm'));
+  $('#calcForm').onsubmit=e=>{e.preventDefault(); const fd=new FormData(e.currentTarget); const values=Object.fromEntries(fd.entries()); def.fields.forEach(x=>{if(x.type==='number') values[x.name]=Number(String(values[x.name]).replace(',','.'))}); state.values=values; try{state.result=CALCULATORS[state.calc](values);state.view='result';render();window.scrollTo({top:0,behavior:'instant'})}catch(err){toast(err.message||'Ошибка расчёта')}};
 }
 
 function summaryHtml(result){return result.summary.map(([k,v])=>`<div class="result-line"><div class="r-icon">⌁</div><div><strong>${esc(k)}</strong><p class="accent">${esc(v)}</p></div></div>`).join('')}

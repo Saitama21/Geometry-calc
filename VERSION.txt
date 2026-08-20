@@ -1,12 +1,9 @@
-CNC Geometry FULL v1.0.8
-Mobile Result Width Fix
+CNC Geometry FULL v1.0.9
+Numeric Input Caret Fix
 
 Changes:
-- iPhone 14 Pro result page is hard-limited to the viewport width.
-- Fixed CSS Grid min-content expansion that caused right-side clipping.
-- Result summary restored to one compact column on 393px.
-- Diagram is capped at 270px and always fits its card.
-- Coordinates table scrolls inside its own card instead of widening the page.
-- G-code block and action buttons can no longer force horizontal overflow.
-- iPad/tablet >=700px layout is unchanged.
+- Calculator numeric fields now open with the caret after the existing value on iPhone/iOS.
+- Numeric fields keep the decimal keyboard via inputmode="decimal".
+- Comma decimal input is normalized to a dot before calculation.
 - iPhone 14 Pro calibrated top bar and Dock are unchanged.
+- v1.0.8 mobile result width/layout fixes are unchanged.

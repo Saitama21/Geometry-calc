@@ -226,3 +226,7 @@ body.focus-mode .form-footer{bottom:var(--safe-bottom)}
   html.device-iphone14pro .hero-actions{min-width:0}
   html.device-iphone14pro .hero-actions .btn{max-width:100%;white-space:normal}
 }
+
+
+/* v1.0.9 — numeric input caret reliability on iOS. */
+.numeric-field{direction:ltr;text-align:right;}
