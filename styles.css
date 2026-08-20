@@ -17,8 +17,8 @@
   --radius-sm:15px;
   --safe-top:max(12px,env(safe-area-inset-top));
   --safe-bottom:max(10px,env(safe-area-inset-bottom));
-  --dock-bottom:2px;
-  --dock-width:87%;
+  --dock-bottom:7px;
+  --dock-width:95%;
   --dock-height:68px;
   --dock-radius:22px;
   --dock-border:1px;
@@ -28,6 +28,14 @@
   --topbar-pad-bottom:10px;
   --topbar-radius:24px;
   --topbar-border:1px;
+}
+/* Device calibration profile: iPhone 14 Pro-class viewport (393×852 @3x, standalone).
+   Kept separate from generic defaults so other phones are not forced into this geometry. */
+html.device-iphone14pro{
+  --dock-bottom:2px;
+  --dock-width:87%;
+  --dock-height:68px;
+  --dock-border:1px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;color:var(--text);overscroll-behavior:none}

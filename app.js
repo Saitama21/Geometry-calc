@@ -13,7 +13,7 @@ const STORAGE = {
   theme:'cnc-geometry-theme-v1',
   tools:'cnc-geometry-tools-v1',
   profile:'cnc-geometry-profile-v1',
-  topbar:'cnc-geometry-topbar-v1'
+  topbar:'cnc-geometry-topbar-v2'
 };
 
 const state = {
@@ -26,6 +26,15 @@ const state = {
   theme:localStorage.getItem(STORAGE.theme) || 'dark'
 };
 app.dataset.theme = state.theme;
+
+function isIPhone14ProProfile(){
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  const w=Math.min(screen.width,screen.height);
+  const h=Math.max(screen.width,screen.height);
+  return standalone && w===393 && h===852 && Math.round(devicePixelRatio)===3;
+}
+const DEVICE_PROFILE=isIPhone14ProProfile()?'iphone14pro':'generic';
+document.documentElement.classList.toggle('device-iphone14pro',DEVICE_PROFILE==='iphone14pro');
 applyTopbarSettings();
 
 const calcDefs = [
@@ -235,8 +244,12 @@ function showToolSheet(){
   const wrap=document.createElement('div');wrap.className='sheet-backdrop';wrap.innerHTML=`<div class="sheet glass"><h3>Добавить инструмент</h3><form id="toolForm"><div class="form-row"><label>Тип</label><select class="field" name="type"><option value="mill">Фреза</option><option value="drill">Сверло</option></select></div><div class="form-row"><label>Название</label><input class="field" name="name" value="Фреза Ø8"/></div><div class="form-row"><label>Диаметр Ø</label><input class="field" name="dia" type="number" step="0.1" value="8"/></div><div class="form-row"><label>Зубьев z</label><input class="field" name="teeth" type="number" step="1" value="4"/></div><div class="hero-actions"><button class="btn btn-primary" type="submit">Сохранить</button><button class="btn" type="button" id="cancelSheet">Отмена</button></div></form></div>`;document.body.append(wrap);$('#cancelSheet',wrap).onclick=()=>wrap.remove();wrap.onclick=e=>{if(e.target===wrap)wrap.remove()};$('#toolForm',wrap).onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.currentTarget).entries());const tools=getTools();tools.unshift({id:uid(),...v,dia:Number(v.dia),teeth:Number(v.teeth)});saveTools(tools);wrap.remove();renderTools()};
 }
 
+function topbarDefaults(){
+  if(DEVICE_PROFILE==='iphone14pro') return {inset:0,height:75,padX:13,padBottom:0,radius:34,border:1};
+  return {inset:6,height:66,padX:12,padBottom:10,radius:24,border:1};
+}
 function getTopbarSettings(){
-  const defaults={inset:6,height:66,padX:12,padBottom:10,radius:24,border:1};
+  const defaults=topbarDefaults();
   try{return {...defaults,...JSON.parse(localStorage.getItem(STORAGE.topbar)||'{}')}}catch{return defaults}
 }
 function applyTopbarSettings(v=getTopbarSettings()){
@@ -256,6 +269,7 @@ function topbarReport(v){
   const css=getComputedStyle(document.documentElement);
   return [
     `mode: ${topbarMode()}`,
+    `device profile: ${DEVICE_PROFILE}`,
     `DPR: ${devicePixelRatio}`,
     `screen: ${screen.width}×${screen.height}`,
     `avail: ${screen.availWidth}×${screen.availHeight}`,
@@ -293,7 +307,7 @@ function renderProfile(){
   };
   $$('[data-topdiag]').forEach(r=>r.oninput=()=>{live[r.dataset.topdiag]=Number(r.value);update()});
   $('#saveTopbar').onclick=()=>{saveTopbarSettings(live);toast('Настройки верхней панели сохранены');update()};
-  $('#resetTopbar').onclick=()=>{live={inset:6,height:66,padX:12,padBottom:10,radius:24,border:1};saveTopbarSettings(live);renderProfile();toast('Верхняя панель сброшена')};
+  $('#resetTopbar').onclick=()=>{live={...topbarDefaults()};saveTopbarSettings(live);renderProfile();toast('Верхняя панель сброшена')};
   $('#saveProfile').onclick=()=>{saveProfile({machine:$('#machineInput').value,control:$('#controlInput').value,maxRpm:Number($('#rpmInput').value)||4000});toast('Профиль сохранён')};
   $('#clearData').onclick=()=>{if(confirm('Удалить проекты, инструмент и профиль?')){Object.values(STORAGE).forEach(k=>localStorage.removeItem(k));location.reload()}};
   update();

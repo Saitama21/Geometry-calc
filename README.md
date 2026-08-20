@@ -53,3 +53,7 @@ node tests.mjs
 
 ## v1.0.4 Dock Diagnostics
 Profile now includes live Dock diagnostics with controls for bottom offset, width, thickness, radius and border. Settings can be saved to localStorage.
+
+
+## v1.0.6 device profile
+For standalone mode on a 393×852 CSS-pixel screen at DPR 3, the app applies the calibrated iPhone 14 Pro-class UI profile: topbar 0/75/13/0/34/1 and Dock 2px/87%/68px/1px. Other devices retain generic defaults. Top diagnostics remain available in Profile.
