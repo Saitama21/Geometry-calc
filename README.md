@@ -4,6 +4,7 @@
 
 ## Что работает
 
+- Шар → 4 грани: профиль X/Z для отрезного резца, шейка, припуск, 4 позиции C и расчёт остаточных сферических дуг
 - Деление окружности / индексация оси C
 - Болтовая окружность PCD → X/Y/C
 - Лепестки / фигурная окружность: центры дуг, шаг C, компенсационный радиус
@@ -44,7 +45,7 @@
 node tests.mjs
 ```
 
-Ожидаемый результат: `OK: 11/11 calculator regression checks`.
+Ожидаемый результат: `OK: 15/15 calculator regression checks`.
 
 ## Важное по технологическим режимам
 
@@ -61,3 +62,11 @@ For standalone mode on a 393×852 CSS-pixel screen at DPR 3, the app applies the
 
 ## v1.1.0 — fixed iPhone 14 Pro production profile
 The calibrated 393×852 @3x standalone profile is now locked as a device rule. Top diagnostics were removed from the production UI, prior localStorage topbar overrides are ignored on this profile, and the validated mobile result layout and iOS caret behavior are retained.
+
+
+## v1.2.0 — Sphere → Cube
+- Новый двухэтапный модуль: кругляк → шар отрезным резцом → 4 одинаковые грани фрезой.
+- Теоретический X/Z профиль шара и безопасный черновой X с учётом ширины резца и припуска.
+- Опциональная шейка для удержания детали.
+- Индексация C через 90°, расчёт съёма, положения центра фрезы, длины плоской площадки и остаточной сферической дуги.
+- Две отдельные таблицы результата и комбинированная схема вида X/Z + торец.

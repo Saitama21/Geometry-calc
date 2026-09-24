@@ -197,7 +197,110 @@ export function calcLinearArray(v){
   return {title:'Линейный массив отверстий',headline:`${n} позиций • шаг ${round(step)} мм`,formula:`Xᵢ=X₀+i·P·cos(α), Yᵢ=Y₀+i·P·sin(α)`,summary:[['Старт',`X=${x0}, Y=${y0}`],['Угол ряда',`${round(a)}°`],['Общая длина',`${round((n-1)*step)} мм`]],columns:['№','X','Y'],rows:pts.map(p=>[p.i,p.x,p.y]),diagram:{type:'linear',points:pts},gcode:pts.map(p=>`X=${p.x} Y=${p.y}`).join('\n')};
 }
 
+
+export function calcSphereCube(v){
+  requirePositive(v,['stockDia','sphereDia','toolWidth','stepZ','acrossFlats','millDia']);
+  const stockDia=Number(v.stockDia), D=Number(v.sphereDia), R=D/2;
+  const toolWidth=Number(v.toolWidth), stepZ=Number(v.stepZ);
+  const allowance=Math.max(0,Number(v.finishAllowance||0));
+  const neckDia=Math.max(0,Number(v.neckDia||0));
+  const af=Number(v.acrossFlats), millDia=Number(v.millDia);
+  const start=Number(v.start||0), direction=v.direction==='ccw'?'ccw':'cw';
+
+  if(stockDia < D) throw new Error('Заготовка должна быть не меньше диаметра шара.');
+  if(af >= D) throw new Error('Размер между противоположными гранями должен быть меньше диаметра шара.');
+  if(neckDia >= D) throw new Error('Диаметр шейки должен быть меньше диаметра шара.');
+
+  const centerZ=-R, rearIdeal=-D;
+  const rearStop=neckDia>0 ? centerZ-Math.sqrt(Math.max(0,R*R-Math.pow(neckDia/2,2))) : rearIdeal;
+  const pointDia=z=>{
+    const dz=z-centerZ, q=R*R-dz*dz;
+    return q<=0 ? 0 : 2*Math.sqrt(q);
+  };
+  const safeDia=z=>{
+    const half=toolWidth/2;
+    const lo=Math.max(rearIdeal,z-half), hi=Math.min(0,z+half);
+    const candidates=[lo,hi];
+    if(centerZ>=lo && centerZ<=hi) candidates.push(centerZ);
+    const maxDia=Math.max(...candidates.map(pointDia));
+    return Math.min(stockDia,maxDia+2*allowance);
+  };
+
+  const zs=[0];
+  for(let z=-stepZ; z>rearStop; z-=stepZ) zs.push(z);
+  if(Math.abs(zs[zs.length-1]-rearStop)>1e-7) zs.push(rearStop);
+  if(zs.length>240) throw new Error('Слишком мелкий шаг Z: получится больше 240 врезаний. Увеличь шаг.');
+
+  const turnRows=zs.map((z,i)=>{
+    const exact=pointDia(z), rough=safeDia(z);
+    return [i+1,round(z,3),round(exact,3),round(rough,3),round(Math.max(0,(stockDia-rough)/2),3)];
+  });
+
+  const a=af/2;
+  const depth=R-a;
+  const faceDia=2*Math.sqrt(Math.max(0,R*R-a*a));
+  const threshold=D/Math.SQRT2;
+  const theta=deg(Math.acos(Math.min(1,Math.max(-1,a/R))));
+  const gapDeg=Math.max(0,90-2*theta);
+  const gapArc=R*rad(gapDeg);
+  const toolCenter=a+millDia/2;
+  const zFront=centerZ+faceDia/2, zRear=centerZ-faceDia/2;
+  const as=angles(4,start,direction);
+  const millRows=as.map((c,i)=>[
+    i+1,round(c,3),round(depth,3),round(toolCenter,3),round(zFront,3),round(zRear,3)
+  ]);
+
+  const warnings=[];
+  if(stepZ>toolWidth) warnings.push('Шаг Z больше ширины отрезного резца: между соседними врезаниями могут остаться непрорезанные полосы.');
+  if(af < threshold-0.01) warnings.push('При таком S четыре плоскости пересекутся — сферических дуг между гранями не останется.');
+  else if(Math.abs(af-threshold)<=0.01) warnings.push('S находится почти в точке касания соседних граней: остаточная сферическая дуга практически равна нулю.');
+  warnings.push('X для шара дан в диаметральном программировании. X черновой учитывает ширину резца и припуск и специально не занижает теоретический профиль.');
+  warnings.push('Данные для фрезеровки — геометрия детали. Перед запуском на станке проверь знак осей, ориентацию приводного инструмента, корректор и безопасные подводы.');
+
+  const arcState=gapDeg>0.01
+    ? round(gapDeg,2)+'° / '+round(gapArc,3)+' мм по экватору'
+    : 'не остаётся';
+
+  return {
+    title:'Шар → 4 одинаковые грани',
+    headline:'Шар Ø'+round(D)+' → 4 грани S'+round(af),
+    formula:'X(Z)=2·√(R²−(Z−Zc)²); h=(D−S)/2='+round(depth,3)+' мм',
+    summary:[
+      ['Заготовка','Ø'+round(stockDia)+' мм'],
+      ['Шар','Ø'+round(D)+' мм • R'+round(R)+' мм'],
+      ['Z0 / центр','перед шара Z0; центр Z'+round(centerZ,3)],
+      ['Шейка',neckDia>0?'Ø'+round(neckDia)+' • стоп профиля Z'+round(rearStop,3):'без шейки • задняя точка Z'+round(rearIdeal,3)],
+      ['4 грани','S='+round(af)+' мм • C '+as.map(x=>round(x,2)+'°').join(' / ')],
+      ['Площадка грани','Ø'+round(faceDia,3)+' мм • Z '+round(zFront,3)+' → '+round(zRear,3)],
+      ['Сферические дуги',arcState]
+    ],
+    kpis:[
+      ['Съём на грань',round(depth,3)+' мм'],
+      ['Ø площадки',round(faceDia,3)+' мм'],
+      ['Дуга между гранями',round(gapDeg,2)+'°']
+    ],
+    columns:['№','Z центра, мм','X сферы, мм','X черновой, мм','Съём по R, мм'],
+    rows:turnRows,
+    tables:[
+      {title:'Шар — врезания отрезным резцом',subtitle:'Z0 = передняя точка шара • X в диаметре',columns:['№','Z центра, мм','X сферы, мм','X черновой, мм','Съём по R, мм'],rows:turnRows},
+      {title:'Кубик — 4 одинаковые грани',subtitle:'индексация оси C через 90°',columns:['Грань','C, °','Съём, мм','Центр фрезы от оси, мм','Z начало, мм','Z конец, мм'],rows:millRows}
+    ],
+    diagram:{
+      type:'sphereCube',sphereR:R,stockR:stockDia/2,acrossFlats:af,faceDia,gapDeg,
+      centerZ,rearStop,neckDia,toolWidth,millDia,
+      turnPoints:turnRows.map(r=>({z:r[1],exact:r[2],rough:r[3]}))
+    },
+    warnings,
+    gcode:
+      '; ШАР Ø'+round(D)+' • Z0 = передняя точка • X в диаметре\n'+
+      turnRows.map(r=>'Z='+r[1]+' X='+r[3]+' ; X сферы='+r[2]).join('\n')+
+      '\n\n; 4 ГРАНИ • S='+round(af)+' • съём='+round(depth,3)+' мм\n'+
+      millRows.map(r=>'C='+r[1]+' ; центр фрезы от оси='+r[3]+' ; Z '+r[4]+' -> '+r[5]).join('\n')
+  };
+}
+
 export const CALCULATORS = {
+  sphereCube: calcSphereCube,
   division: calcDivision,
   pcd: calcPCD,
   lobes: calcLobes,

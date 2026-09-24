@@ -38,6 +38,18 @@ document.documentElement.classList.toggle('device-iphone14pro',DEVICE_PROFILE===
 applyTopbarSettings();
 
 const calcDefs = [
+  {id:'sphereCube', icon:'◉', title:'Шар → 4 грани', desc:'Кругляк → шар отрезным резцом → 4 одинаковые грани по оси C', badge:'X/Z/C', fields:[
+    f('stockDia','Заготовка Ø','number',25,'Исходный кругляк, мм',.1,1000,.1),
+    f('sphereDia','Диаметр шара Ø','number',24,'Например R12 = Ø24',.1,1000,.1),
+    f('toolWidth','Ширина отрезного резца','number',4,'Ширина пластины, мм',.1,20,.1),
+    f('stepZ','Шаг врезаний по Z','number',2,'Чем меньше шаг — тем ближе черновой профиль к шару',.1,50,.1),
+    f('finishAllowance','Припуск на шар по R','number',.2,'Добавляется к радиусу чернового профиля, мм',0,5,.05),
+    f('neckDia','Оставить шейку Ø','number',10,'0 = считать шар до задней точки',0,999,.1),
+    f('acrossFlats','Размер между гранями S','number',20,'Для сохранения дуг S должен быть больше D/√2',.1,999,.1),
+    f('millDia','Диаметр фрезы Ø','number',8,'Расчёт центра при боковом фрезеровании',.1,100,.1),
+    f('start','Первая грань C','number',0,'°',-360,360,.1),
+    s('direction','Направление индексации','cw',[['cw','CW / по часовой'],['ccw','CCW / против часовой']])
+  ]},
   {id:'division', icon:'C°', title:'Деление окружности', desc:'Индексация оси C на любое число позиций', badge:'C-axis', fields:[
     f('count','Количество позиций','number',6,'Сколько равных делений',1,360,1),
     f('start','Стартовый угол C','number',0,'Первая позиция, °',-360,360,.1),
@@ -163,8 +175,8 @@ function renderHome(){
     <section class="hero glass">
       <div class="eyebrow">CNC • GEOMETRY • SINUMERIK</div>
       <h1>Геометрия, координаты и режимы — в одном офлайн‑калькуляторе.</h1>
-      <p>Ось C, болтовые окружности, лепестки, лыски, многоугольники, пазы, сверление, резьба, дуги и режимы фрезерования. Результат — формула, схема, таблица и данные для переноса в стойку.</p>
-      <div class="hero-actions"><button class="btn btn-primary" data-calc="lobes">✿ Открыть лепестки</button><button class="btn" id="openHandlePreset">⌁ Пример: ручка Ø50 M8</button></div>
+      <p>Шар из кругляка, 4 одинаковые грани по оси C, болтовые окружности, лепестки, лыски, многоугольники, пазы, сверление, резьба, дуги и режимы фрезерования. Результат — формула, схема, таблица и данные для переноса в стойку.</p>
+      <div class="hero-actions"><button class="btn btn-primary" data-calc="sphereCube">◉ Шар → 4 грани</button><button class="btn" data-calc="lobes">✿ Лепестки</button><button class="btn" id="openHandlePreset">⌁ Пример: ручка Ø50 M8</button></div>
     </section>
     <section class="preset-card glass" id="handlePreset">
       <img src="./assets/sample-handle-drawing.jpeg" alt="Пример чертежа ручки"/>
@@ -211,7 +223,7 @@ function bindNumericCaretEnd(root=document){
 function renderCalc(){
   const def=calcDef(state.calc); setHeader(def.title,'Ввод параметров',true); setDock('home');
   const rows=def.fields.map(x=>`<div class="form-row"><label>${esc(x.label)}${x.hint?`<small>${esc(x.hint)}</small>`:''}</label>${fieldHtml(x,state.values[x.name])}</div>`).join('');
-  const preview=state.calc==='lobes'?`<section class="preset-card glass"><img src="./assets/sample-handle-drawing.jpeg" alt="Чертёж"/><div><strong>Пример геометрии</strong><small>Калькулятор универсальный — значения можно менять под любую деталь.</small></div><span class="chev">⌕</span></section>`:'';
+  const preview=state.calc==='lobes'?`<section class="preset-card glass"><img src="./assets/sample-handle-drawing.jpeg" alt="Чертёж"/><div><strong>Пример геометрии</strong><small>Калькулятор универсальный — значения можно менять под любую деталь.</small></div><span class="chev">⌕</span></section>`:state.calc==='sphereCube'?`<section class="settings-card glass"><div class="eyebrow">2 ЭТАПА • X/Z → C</div><h2 style="margin:7px 0 5px">Кругляк → шар → 4 грани</h2><p style="margin:0;color:var(--muted);font-size:12px;line-height:1.45">Сначала получаешь таблицу врезаний отрезным резцом по профилю шара. Затем — четыре одинаковые плоскости C0 / C90 / C180 / C270 с расчётом съёма и остаточной сферической дуги.</p></section>`:'';
   main.innerHTML=`${preview}<form id="calcForm"><section class="form-card glass">${rows}</section>
     <section class="warning"><strong>Проверка геометрии включена.</strong> Калькулятор предупредит, если исходные размеры противоречат друг другу или инструмент физически не подходит.</section>
     <div class="form-footer"><button class="btn btn-primary" type="submit">▦ Рассчитать</button></div></form>`;
@@ -221,10 +233,12 @@ function renderCalc(){
 
 function summaryHtml(result){return result.summary.map(([k,v])=>`<div class="result-line"><div class="r-icon">⌁</div><div><strong>${esc(k)}</strong><p class="accent">${esc(v)}</p></div></div>`).join('')}
 function tableHtml(result){return `<div class="table-wrap"><table class="data-table"><thead><tr>${result.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${result.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`}
+function tablesHtml(result){const sets=result.tables?.length?result.tables:[{title:'Координаты / шаг',subtitle:'',columns:result.columns,rows:result.rows}];return sets.map((t,i)=>`${i?'<div style="height:12px"></div>':''}<div class="section-head" style="margin:0 0 7px"><div><h2 style="font-size:14px">${esc(t.title||'Таблица')}</h2></div><p>${esc(t.subtitle||((t.rows||[]).length+' строк'))}</p></div>${tableHtml(t)}`).join('')}
 function kpiHtml(kpis=[]){return kpis.length?`<div class="kpi-row">${kpis.map(([k,v])=>`<div class="kpi"><strong>${esc(v)}</strong><small>${esc(k)}</small></div>`).join('')}</div>`:''}
 
 function renderResult(){
   const r=state.result; const def=calcDef(state.calc); setHeader('Результат расчёта',def.title,true); setDock('home');
+  const rowCount=(r.tables?.length?r.tables:[{rows:r.rows||[]}]).reduce((n,t)=>n+(t.rows?.length||0),0);
   const warnings=(r.warnings||[]).map(w=>`<div class="warning ${w.includes('не получить')?'error-box':''}"><strong>${w.includes('не получить')?'Проверь размеры':'Важно'}.</strong> ${esc(w)}</div>`).join('');
   main.innerHTML=`
     <section class="result-card glass"><div class="eyebrow">${esc(r.title)}</div><h2 style="margin:6px 0 4px">${esc(r.headline)}</h2><p style="margin:0;color:var(--muted);font-size:12px">${esc(r.formula)}</p>${kpiHtml(r.kpis)}</section>
@@ -232,7 +246,7 @@ function renderResult(){
     <section class="result-grid">
       <section class="result-card glass"><div class="section-head" style="margin:0 0 8px"><h2>Результат</h2><p>расчёт</p></div><div class="result-summary">${summaryHtml(r)}</div></section>
       <section class="result-card glass"><div class="section-head" style="margin:0 0 8px"><h2>Схема</h2><p>вид сверху</p></div><div class="diagram">${renderDiagram(r.diagram)}</div></section>
-      <section class="result-card glass wide"><div class="section-head" style="margin:0 0 8px"><h2>Координаты / шаг</h2><p>${r.rows.length} строк</p></div>${tableHtml(r)}</section>
+      <section class="result-card glass wide"><div class="section-head" style="margin:0 0 8px"><h2>Координаты / шаг</h2><p>${rowCount} строк</p></div>${tablesHtml(r)}</section>
       <section class="result-card glass wide"><div class="section-head" style="margin:0 0 8px"><h2>Для стойки</h2><p>копируемые данные</p></div><div class="code-box" id="codeBox">${esc(r.gcode||'')}</div><div class="hero-actions"><button class="btn" id="copyBtn">⧉ Копировать</button></div></section>
       <section class="result-card glass wide"><div class="section-head" style="margin:0 0 8px"><h2>Действия</h2><p>локально</p></div><div class="action-grid"><button class="btn btn-primary" id="saveProject">＋ Сохранить проект</button><button class="btn" id="pngBtn">▧ PNG карточка</button><button class="btn" id="pdfBtn">PDF / печать</button><button class="btn" id="newBtn">＋ Новый расчёт</button></div></section>
     </section>`;
@@ -338,6 +352,40 @@ function renderDiagram(d){
   if(d.type==='lobes'){
     const scale=92/(d.outerR||1);let s=base+grid+`<circle cx="160" cy="130" r="${d.baseR*scale}" fill="none" stroke-dasharray="5 4" class="soft-stroke"/>`;
     const pathPts=[];for(let i=0;i<360;i++){const a=i*Math.PI/180;let max=-Infinity;for(const p of d.centers){const cx=p.x,cy=p.y;const ux=Math.cos(a),uy=Math.sin(a);const dot=cx*ux+cy*uy,disc=d.lobeR*d.lobeR-(cx*cx+cy*cy-dot*dot);if(disc>=0)max=Math.max(max,dot+Math.sqrt(disc))}const rr=Math.max(d.baseR,max);pathPts.push([c.x+rr*scale*Math.cos(a),c.y-rr*scale*Math.sin(a)])}s+=`<path d="M ${pathPts.map(p=>p.join(' ')).join(' L ')} Z" fill="rgba(255,196,0,.06)" stroke="var(--yellow)" stroke-width="2"/>`;d.centers.forEach(p=>{s+=`<circle cx="${c.x+p.x*scale}" cy="${c.y-p.y*scale}" r="2.5" fill="var(--yellow)"/>`});s+=`<text x="160" y="244" text-anchor="middle">R лепестка ${round(d.lobeR)} • ${d.count} шт.</text>`;return s+'</svg>'
+  }
+
+  if(d.type==='sphereCube'){
+    const R=d.sphereR||1, leftCx=82, cy=130, sideR=62;
+    const sx=sideR/R, zMap=z=>leftCx+((z+d.sphereR)/d.sphereR)*sideR;
+    let s=base;
+    s+='<text x="82" y="27" text-anchor="middle">ШАР • X/Z</text>';
+    s+='<line x1="18" y1="'+cy+'" x2="146" y2="'+cy+'" class="soft-stroke"/>';
+    s+='<circle cx="'+leftCx+'" cy="'+cy+'" r="'+sideR+'" fill="rgba(255,196,0,.045)" stroke="var(--yellow)" stroke-width="2"/>';
+    s+='<line x1="'+leftCx+'" y1="'+(cy-sideR-8)+'" x2="'+leftCx+'" y2="'+(cy+sideR+8)+'" stroke-dasharray="4 4" class="soft-stroke"/>';
+    if(Array.isArray(d.turnPoints)&&d.turnPoints.length>1){
+      const upper=d.turnPoints.map(p=>{
+        const x=zMap(Number(p.z));
+        const y=cy-(Number(p.rough)/2)*sx;
+        return x+','+y;
+      }).join(' ');
+      s+='<polyline points="'+upper+'" fill="none" stroke="rgba(160,170,180,.72)" stroke-width="2" stroke-linejoin="round"/>';
+    }
+    if(d.neckDia>0){
+      const rz=zMap(d.rearStop), nh=(d.neckDia/2)*sx;
+      s+='<rect x="18" y="'+(cy-nh)+'" width="'+Math.max(0,rz-18)+'" height="'+(nh*2)+'" fill="rgba(160,170,180,.10)" stroke="rgba(160,170,180,.45)"/>';
+    }
+    s+='<text x="82" y="218" text-anchor="middle">R'+round(R)+' • Zc '+round(d.centerZ,2)+'</text>';
+
+    const ex=238, er=62, off=er*((d.acrossFlats/2)/R), half=er*((d.faceDia/2)/R);
+    s+='<text x="'+ex+'" y="27" text-anchor="middle">4 ГРАНИ • C</text>';
+    s+='<circle cx="'+ex+'" cy="'+cy+'" r="'+er+'" fill="rgba(255,255,255,.018)" class="soft-stroke"/>';
+    s+='<line x1="'+(ex-off)+'" y1="'+(cy-half)+'" x2="'+(ex-off)+'" y2="'+(cy+half)+'" stroke="var(--yellow)" stroke-width="3"/>';
+    s+='<line x1="'+(ex+off)+'" y1="'+(cy-half)+'" x2="'+(ex+off)+'" y2="'+(cy+half)+'" stroke="var(--yellow)" stroke-width="3"/>';
+    s+='<line x1="'+(ex-half)+'" y1="'+(cy-off)+'" x2="'+(ex+half)+'" y2="'+(cy-off)+'" stroke="var(--yellow)" stroke-width="3"/>';
+    s+='<line x1="'+(ex-half)+'" y1="'+(cy+off)+'" x2="'+(ex+half)+'" y2="'+(cy+off)+'" stroke="var(--yellow)" stroke-width="3"/>';
+    s+='<text x="'+ex+'" y="218" text-anchor="middle">S '+round(d.acrossFlats)+' • дуга '+round(d.gapDeg,2)+'°</text>';
+    s+='<text x="160" y="245" text-anchor="middle">Ø площадки '+round(d.faceDia,2)+' мм</text>';
+    return s+'</svg>';
   }
   if(d.type==='flats'){
     const R=92,off=R*(d.flatOffset/d.stockR);let pts=[];for(let i=0;i<d.count;i++){const a=(d.start+i*360/d.count-90)*Math.PI/180;const nx=Math.cos(a),ny=Math.sin(a),tx=-ny,ty=nx;const half=Math.sqrt(Math.max(0,R*R-off*off));pts.push([[c.x+off*nx+half*tx,c.y+off*ny+half*ty],[c.x+off*nx-half*tx,c.y+off*ny-half*ty]])}let s=base+grid+`<circle cx="160" cy="130" r="92" fill="none" class="soft-stroke"/>`;pts.forEach(p=>s+=`<line x1="${p[0][0]}" y1="${p[0][1]}" x2="${p[1][0]}" y2="${p[1][1]}" stroke="var(--yellow)" stroke-width="3"/>`);return s+'</svg>'
