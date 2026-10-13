@@ -10,6 +10,23 @@ assert.ok(sphereCube.diagram.gapDeg>0);
 assert.deepEqual(calcDivision({count:6,start:0,direction:'cw'}).rows.map(r=>r[1]),[0,60,120,180,240,300]);
 assert.equal(calcPCD({pcd:60,count:4,start:0,cx:0,cy:0,direction:'cw'}).rows[0][2],30);
 assert.equal(calcLobes({stockDia:62,baseDia:50,outerDia:62,count:6,lobeR:11,toolDia:8,start:0,direction:'cw'}).rows.length,6);
+const lobesWithInner=calcLobes({stockDia:40,baseDia:35,outerDia:40,count:6,lobeR:4.775,innerR:4,toolDia:8,start:0,direction:'cw'});
+assert.equal(lobesWithInner.rows.length,6);
+assert.equal(lobesWithInner.tables[1].rows.length,12);
+assert.equal(lobesWithInner.diagram.arcs.length,24);
+assert.equal(lobesWithInner.diagram.toolArcs.length,12); // Rвн = R фрезы, внутренние дуги траектории сжимаются в точки
+assert.equal(lobesWithInner.warnings.length,0);
+assert.ok(lobesWithInner.summary.some(([k,v])=>k.includes('Внутренний радиус')&&v.includes('4 мм')));
+assert.throws(()=>calcLobes({stockDia:40,baseDia:35,outerDia:40,count:6,lobeR:4.775,innerR:100,toolDia:8}),/сопряжен|пересека/);
+const lobeTooSmall=calcLobes({stockDia:40,baseDia:35,outerDia:40,count:6,lobeR:4.775,innerR:2,toolDia:8});
+assert.equal(lobeTooSmall.diagram.toolArcs.length,0);
+assert.ok(lobeTooSmall.warnings.some(x=>x.includes('не сформирует')));
+const legacyLobes=calcLobes({stockDia:40,baseDia:35,outerDia:40,count:6,lobeR:4.775,toolDia:8});
+assert.equal(legacyLobes.diagram.arcs.length,12);
+for (let i=0;i<lobesWithInner.diagram.arcs.length;i++){
+  const arc=lobesWithInner.diagram.arcs[i],next=lobesWithInner.diagram.arcs[(i+1)%lobesWithInner.diagram.arcs.length];
+  assert.ok(Math.hypot(arc.to.x-next.from.x,arc.to.y-next.from.y)<1e-7);
+}
 assert.equal(calcFlats({stockDia:50,acrossFlats:46,count:2,toolDia:8,start:0,direction:'cw'}).rows[0][2],2);
 assert.equal(calcPolygon({stockDia:50,sides:6,acrossFlats:42,toolDia:8,start:0,direction:'cw'}).rows.length,6);
 assert.equal(calcSlots({pcd:50,count:6,length:10,width:8,depth:3,toolDia:6,start:0,orientation:'radial',direction:'cw'}).rows.length,6);
