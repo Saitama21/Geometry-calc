@@ -72,30 +72,90 @@ export function calcPCD(v){
 export function calcLobes(v){
   requirePositive(v,['baseDia','count','lobeR','outerDia','toolDia']);
   const n=Math.floor(Number(v.count));
-  const rb=Number(v.baseDia)/2, ro=Number(v.outerDia)/2, rl=Number(v.lobeR), rt=Number(v.toolDia)/2;
-  if(ro < rb) throw new Error('Наружный диаметр должен быть не меньше базового.');
-  if(rl <= (ro-rb)/2) throw new Error('R лепестка слишком мал для заданной высоты лепестка.');
-  const rc = ro - rl; // center radius of each convex circular lobe
-  if(rc < 0) throw new Error('R лепестка больше наружного радиуса — геометрия невозможна.');
-  const as=angles(n,Number(v.start||0),v.direction), step=360/n;
-  const centers=as.map((a,i)=>({i:i+1,a,...xyOnRadius(rc,a)}));
-  const stock=Number(v.stockDia||v.outerDia), stockR=stock/2;
-  const depth=Math.max(0,stockR-rb);
-  const compR=rl+rt;
-  const issues=[];
-  if(stock < Number(v.outerDia)) issues.push(`Заготовка Ø${round(stock)} меньше наружного Ø${round(v.outerDia)} — лепестки из такой заготовки не получить.`);
-  if(Number(v.baseDia)===Number(v.outerDia)) issues.push('Базовый и наружный диаметры равны: высота лепестка получается 0.');
+  const rb=Number(v.baseDia)/2,ro=Number(v.outerDia)/2;
+  const rl=Number(v.lobeR),rt=Number(v.toolDia)/2;
+  const ri=Number(v.innerR??0);
+  if(n<2)throw new Error('Нужно минимум два лепестка.');
+  if(!Number.isFinite(ri)||ri<0)throw new Error('Внутренний радиус Rвн должен быть неотрицательным.');
+  if(ro<=rb)throw new Error('Наружный Ø должен быть больше базового Ø.');
+  if(rl<=(ro-rb)/2)throw new Error('R лепестка слишком мал для заданной высоты лепестка.');
+  const rc=ro-rl;
+  if(rc<=0)throw new Error('R лепестка должен быть меньше наружного радиуса детали.');
+  const rf=rb+ri,dist=rl+ri;
+  const cosPhi=(rf*rf+rc*rc-dist*dist)/(2*rf*rc);
+  if(!Number.isFinite(cosPhi)||cosPhi>1+1e-9||cosPhi< -1-1e-9)
+    throw new Error('Для выбранных Ø и радиусов невозможно построить касательное сопряжение.');
+  const phi=Math.acos(Math.max(-1,Math.min(1,cosPhi)));
+  const step=360/n;
+  if(phi>=Math.PI/n-1e-9)
+    throw new Error('Внутренний R слишком велик: соседние сопряжения пересекаются. Уменьши Rвн или количество лепестков.');
+  const at=(r,a)=>({x:r*Math.cos(a),y:r*Math.sin(a)});
+  const fillet=(a,side,L)=>{
+    const F=at(rf,a+side*phi);
+    const T={x:L.x+(F.x-L.x)*rl/dist,y:L.y+(F.y-L.y)*rl/dist};
+    return {center:F,tangent:T,base:at(rb,a+side*phi)};
+  };
+  const lobes=angles(n,Number(v.start||0),v.direction).map((a,i)=>{
+    const center=at(rc,rad(a)),aRad=rad(a);
+    return {i:i+1,a,center,left:fillet(aRad,-1,center),right:fillet(aRad,1,center)};
+  });
+  // The C-axis indexing direction does not change the geometric CCW path orientation.
+  const sorted=[...lobes].sort((a,b)=>a.a-b.a);
+  const arcs=[];
+  for(let i=0;i<n;i++){
+    const l=sorted[i],next=sorted[(i+1)%n];
+    arcs.push({kind:'outer',center:l.center,radius:rl,from:l.left.tangent,to:l.right.tangent,ccw:true});
+    if(ri>0)arcs.push({kind:'inner',center:l.right.center,radius:ri,from:l.right.tangent,to:l.right.base,ccw:false});
+    arcs.push({kind:'base',center:{x:0,y:0},radius:rb,from:l.right.base,to:next.left.base,ccw:true});
+    if(ri>0)arcs.push({kind:'inner',center:next.left.center,radius:ri,from:next.left.base,to:next.left.tangent,ccw:false});
+  }
+  // For outside machining, convex arcs grow by Rtool; concave fillets shrink.
+  const canCompensate=ri>=rt;
+  const toolArcs=canCompensate?arcs.map(a=>{
+    const radius=a.radius+(a.kind==='inner'?-rt:rt),ratio=radius/a.radius;
+    const move=p=>({x:a.center.x+(p.x-a.center.x)*ratio,y:a.center.y+(p.y-a.center.y)*ratio});
+    return {...a,radius,from:move(a.from),to:move(a.to)};
+  }).filter(a=>a.radius>1e-8):[];
+  const stock=Number(v.stockDia??v.outerDia),issues=[];
+  if(stock<Number(v.outerDia))
+    issues.push(`Заготовка Ø${round(stock)} меньше наружного Ø${round(v.outerDia)} — лепестки из такой заготовки не получить.`);
+  if(!canCompensate)issues.push(ri===0
+    ?`Впадины без скругления (Rвн=0) нельзя точно обработать фрезой Ø${round(v.toolDia)}. Задай Rвн не меньше ${round(rt)} мм.`
+    :`Фреза Ø${round(v.toolDia)} (R${round(rt)}) не сформирует внутренний R${round(ri)}. Нужна фреза Ø не больше ${round(2*ri)} мм.`);
+  const centers=lobes.map(l=>({i:l.i,a:l.a,x:round(l.center.x),y:round(l.center.y)}));
+  const tables=[{title:'Центры наружных дуг',subtitle:`${n} лепестков`,
+    columns:['Лепесток','C, °','X центра, мм','Y центра, мм'],
+    rows:centers.map(p=>[p.i,round(p.a,4),p.x,p.y])}];
+  if(ri>0)tables.push({title:'Центры внутренних сопряжений',subtitle:`${2*n} дуг R${round(ri)} мм`,
+    columns:['Лепесток','Сторона','X центра, мм','Y центра, мм'],
+    rows:lobes.flatMap(l=>[
+      [l.i,'−',round(l.left.center.x),round(l.left.center.y)],
+      [l.i,'+',round(l.right.center.x),round(l.right.center.y)]
+    ])});
+  const compOuter=rl+rt,compInner=ri-rt;
   return {
     title:'Лепестки / фигурная окружность',
     headline:`${n} лепестков • шаг ${round(step,4)}°`,
-    formula:`Rц = Dнаруж/2 − Rлеп = ${round(rc)} мм; Rтраектории = Rлеп + Rфрезы = ${round(compR)} мм`,
-    summary:[['Базовый Ø',`Ø${round(v.baseDia)} мм`],['Наружный Ø',`Ø${round(v.outerDia)} мм`],['Высота лепестка',`${round(ro-rb)} мм`],['Центры дуг',`R=${round(rc)} мм`],['Компенсированный радиус дуги',`${round(compR)} мм`]],
-    columns:['Лепесток','C, °','X центра, мм','Y центра, мм'],
-    rows:centers.map(p=>[p.i,round(p.a,4),p.x,p.y]),
-    diagram:{type:'lobes',count:n,start:Number(v.start||0),baseR:rb,outerR:ro,lobeR:rl,centerR:rc,centers},
+    formula:`Rц = Dнаруж/2 − Rлеп = ${round(rc)} мм; Rнаруж.тр = ${round(compOuter)} мм`+
+      (ri>0?`; Rвнутр.тр = ${canCompensate?round(compInner)+' мм':'недоступен для данной фрезы'}`:''),
+    summary:[
+      ['Базовый Ø',`Ø${round(v.baseDia)} мм`],['Наружный Ø',`Ø${round(v.outerDia)} мм`],
+      ['Высота лепестка',`${round(ro-rb)} мм`],['Наружный радиус R',`${round(rl)} мм`],
+      ['Внутренний радиус Rвн',`${round(ri)} мм`],
+      ['Угол сопряжения от оси лепестка',`${round(phi*180/Math.PI,4)}°`],
+      ['Компенсация наружной дуги',`R${round(compOuter)} мм`],
+      ['Компенсация внутренней дуги',canCompensate?`R${round(compInner)} мм`:'Недоступна этой фрезой']
+    ],
+    columns:tables[0].columns,rows:tables[0].rows,tables,
+    diagram:{type:'lobes',count:n,baseR:rb,outerR:ro,lobeR:rl,innerR:ri,toolR:rt,arcs,toolArcs},
     warnings:issues,
-    kpis:[['Шаг C',`${round(step,4)}°`],['R фрезы',`${round(rt)} мм`],['Съём по радиусу',`${round(depth)} мм`]],
-    gcode:centers.map(p=>`; Лепесток ${p.i}\nC=${round(p.a,4)} ; центр дуги X=${p.x} Y=${p.y} R=${round(compR)}`).join('\n')
+    kpis:[['Шаг C',`${round(step,4)}°`],['R фрезы',`${round(rt)} мм`],['Съём по радиусу',`${round(Math.max(0,stock/2-rb))} мм`]],
+    gcode:`; Контур: Ø${round(v.baseDia)} / Ø${round(v.outerDia)}; Rнаруж=${round(rl)}; Rвн=${round(ri)}\n`+
+      lobes.map(l=>`; Лепесток ${l.i} C=${round(l.a,4)}°; центр X=${round(l.center.x)} Y=${round(l.center.y)}`).join('\n')+
+      (ri>0?'\n; Центры внутренних дуг:\n'+lobes.flatMap(l=>[
+        `; C${round(l.a,4)}−: X=${round(l.left.center.x)} Y=${round(l.left.center.y)} R=${round(ri)}`,
+        `; C${round(l.a,4)}+: X=${round(l.right.center.x)} Y=${round(l.right.center.y)} R=${round(ri)}`
+      ]).join('\n'):'')+'\n; Центры справочные, НЕ исполняемая УП.'
   };
 }
 
