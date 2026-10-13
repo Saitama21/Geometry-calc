@@ -69,6 +69,7 @@ const calcDefs = [
     f('outerDia','Наружный диаметр Ø','number',62,'По вершинам лепестков, мм',.1,1000,.1),
     f('count','Количество лепестков','number',6,'Равномерно по C',2,60,1),
     f('lobeR','Радиус лепестка R','number',11,'Радиус выпуклой дуги, мм',.1,500,.1),
+    f('innerR','Внутренний радиус Rвн','number',0,'Скругление впадин между лепестками, мм; 0 — без скругления',0,500,.05),
     f('toolDia','Диаметр фрезы Ø','number',8,'Для компенсации траектории',.1,100,.1),
     f('start','Стартовый угол C','number',0,'°',-360,360,.1),
     s('direction','Направление','cw',[['cw','CW'],['ccw','CCW']])
@@ -350,8 +351,27 @@ function renderDiagram(d){
     pts.forEach((p,i)=>{const maxR=d.radius||1,x=c.x+90*(p.x/(maxR||1)),y=c.y-90*(p.y/(maxR||1));s+=`<circle cx="${x}" cy="${y}" r="7" fill="none" stroke="var(--yellow)" stroke-width="2"/><text x="${x}" y="${y-11}" text-anchor="middle">${i+1}</text>`});return s+'</svg>'
   }
   if(d.type==='lobes'){
-    const scale=92/(d.outerR||1);let s=base+grid+`<circle cx="160" cy="130" r="${d.baseR*scale}" fill="none" stroke-dasharray="5 4" class="soft-stroke"/>`;
-    const pathPts=[];for(let i=0;i<360;i++){const a=i*Math.PI/180;let max=-Infinity;for(const p of d.centers){const cx=p.x,cy=p.y;const ux=Math.cos(a),uy=Math.sin(a);const dot=cx*ux+cy*uy,disc=d.lobeR*d.lobeR-(cx*cx+cy*cy-dot*dot);if(disc>=0)max=Math.max(max,dot+Math.sqrt(disc))}const rr=Math.max(d.baseR,max);pathPts.push([c.x+rr*scale*Math.cos(a),c.y-rr*scale*Math.sin(a)])}s+=`<path d="M ${pathPts.map(p=>p.join(' ')).join(' L ')} Z" fill="rgba(255,196,0,.06)" stroke="var(--yellow)" stroke-width="2"/>`;d.centers.forEach(p=>{s+=`<circle cx="${c.x+p.x*scale}" cy="${c.y-p.y*scale}" r="2.5" fill="var(--yellow)"/>`});s+=`<text x="160" y="244" text-anchor="middle">R лепестка ${round(d.lobeR)} • ${d.count} шт.</text>`;return s+'</svg>'
+  const scale=92/(d.outerR+(d.toolArcs?.length?d.toolR:0));
+  const map=p=>({x:160+p.x*scale,y:130-p.y*scale});
+  const build=segments=>{
+    if(!segments?.length)return '';
+    const first=map(segments[0].from);
+    let path=`M ${first.x} ${first.y}`;
+    for(const a of segments){
+      const start=Math.atan2(a.from.y-a.center.y,a.from.x-a.center.x);
+      const end=Math.atan2(a.to.y-a.center.y,a.to.x-a.center.x);
+      const tau=2*Math.PI;
+      const sweep=a.ccw?((end-start+tau)%tau):((start-end+tau)%tau);
+      const large=sweep>Math.PI?1:0,pt=map(a.to);
+      path+=` A ${a.radius*scale} ${a.radius*scale} 0 ${large} ${a.ccw?0:1} ${pt.x} ${pt.y}`;
+    }
+    return path+' Z';
+  };
+  let s=base+grid+`<circle cx="160" cy="130" r="${d.baseR*scale}" fill="none" stroke-dasharray="5 4" class="soft-stroke"/>`;
+  s+=`<path d="${build(d.arcs)}" fill="rgba(255,196,0,.07)" stroke="var(--yellow)" stroke-width="2" stroke-linejoin="round"/>`;
+  if(d.toolArcs?.length)s+=`<path d="${build(d.toolArcs)}" fill="none" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1.4"/>`;
+  s+=`<text x="160" y="244" text-anchor="middle">Rнар ${round(d.lobeR)} • Rвн ${round(d.innerR)} • ${d.count} шт.</text>`;
+  return s+'</svg>';
   }
 
   if(d.type==='sphereCube'){
